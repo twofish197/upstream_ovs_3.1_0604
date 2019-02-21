@@ -407,6 +407,7 @@ ipf_reassemble_v4_frags(struct ipf_list *ipf_list)
 {
     struct ipf_frag *frag_list = ipf_list->frag_list;
     struct dp_packet *pkt = dp_packet_clone(frag_list[0].pkt);
+    dp_packet_set_size(pkt, dp_packet_size(pkt) - dp_packet_l2_pad_size(pkt));
     struct ip_header *l3 = dp_packet_l3(pkt);
     int len = ntohs(l3->ip_tot_len);
 
@@ -420,7 +421,7 @@ ipf_reassemble_v4_frags(struct ipf_list *ipf_list)
         return NULL;
     }
 
-    dp_packet_prealloc_tailroom(pkt, len + rest_len);
+    dp_packet_prealloc_tailroom(pkt, rest_len);
 
     for (int i = 1; i <= ipf_list->last_inuse_idx; i++) {
         size_t add_len = frag_list[i].end_data_byte -
@@ -450,20 +451,21 @@ ipf_reassemble_v6_frags(struct ipf_list *ipf_list)
 {
     struct ipf_frag *frag_list = ipf_list->frag_list;
     struct dp_packet *pkt = dp_packet_clone(frag_list[0].pkt);
+    dp_packet_set_size(pkt, dp_packet_size(pkt) - dp_packet_l2_pad_size(pkt));
     struct  ovs_16aligned_ip6_hdr *l3 = dp_packet_l3(pkt);
     int pl = ntohs(l3->ip6_plen) - sizeof(struct ovs_16aligned_ip6_frag);
 
     int rest_len = frag_list[ipf_list->last_inuse_idx].end_data_byte -
                    frag_list[1].start_data_byte + 1;
 
-    if (pl + rest_len > IPV4_PACKET_MAX_SIZE) {
+    if (pl + rest_len > IPV6_PACKET_MAX_DATA) {
         ipf_print_reass_packet(
              "Unsupported big reassembled v6 packet; v6 hdr:", l3);
         dp_packet_delete(pkt);
         return NULL;
     }
 
-    dp_packet_prealloc_tailroom(pkt, pl + rest_len);
+    dp_packet_prealloc_tailroom(pkt, rest_len);
 
     for (int i = 1; i <= ipf_list->last_inuse_idx; i++) {
         size_t add_len = frag_list[i].end_data_byte -
@@ -530,8 +532,6 @@ ipf_list_state_transition(struct ipf *ipf, struct ipf_list *ipf_list,
     case IPF_LIST_STATE_LAST_SEEN:
         if (ff) {
             next_state = IPF_LIST_STATE_FIRST_LAST_SEEN;
-        } else if (lf) {
-            next_state = IPF_LIST_STATE_LAST_SEEN;
         } else {
             next_state = IPF_LIST_STATE_LAST_SEEN;
         }
@@ -614,7 +614,7 @@ ipf_is_valid_v4_frag(struct ipf *ipf, struct dp_packet *pkt)
     uint32_t min_v4_frag_size_;
     atomic_read_relaxed(&ipf->min_v4_frag_size, &min_v4_frag_size_);
     bool lf = ipf_is_last_v4_frag(pkt);
-    if (OVS_UNLIKELY(!lf && dp_packet_size(pkt) < min_v4_frag_size_)) {
+    if (OVS_UNLIKELY(!lf && dp_packet_l3_size(pkt) < min_v4_frag_size_)) {
         ipf_count(ipf, false, IPF_NFRAGS_TOO_SMALL);
         goto invalid_pkt;
     }
@@ -694,7 +694,7 @@ ipf_is_valid_v6_frag(struct ipf *ipf, struct dp_packet *pkt)
     atomic_read_relaxed(&ipf->min_v6_frag_size, &min_v6_frag_size_);
     bool lf = ipf_is_last_v6_frag(ip6f_offlg);
 
-    if (OVS_UNLIKELY(!lf && dp_packet_size(pkt) < min_v6_frag_size_)) {
+    if (OVS_UNLIKELY(!lf && dp_packet_l3_size(pkt) < min_v6_frag_size_)) {
         ipf_count(ipf, true, IPF_NFRAGS_TOO_SMALL);
         goto invalid_pkt;
     }
@@ -765,7 +765,7 @@ ipf_list_key_eq(const struct ipf_list_key *key1,
 static struct ipf_list *
 ipf_list_key_lookup(struct ipf *ipf, const struct ipf_list_key *key,
                     uint32_t hash)
-    /* OVS_REQUIRES(ipf->ipf_lock) */
+    OVS_REQUIRES(ipf->ipf_lock)
 {
     struct ipf_list *ipf_list;
     HMAP_FOR_EACH_WITH_HASH (ipf_list, node, hash, &ipf->frag_lists) {
