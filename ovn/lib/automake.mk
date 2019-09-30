@@ -14,6 +14,9 @@ nodist_ovn_lib_libovn_la_SOURCES = \
 	ovn/lib/ovn-sb-idl.c \
 	ovn/lib/ovn-sb-idl.h
 
+pkgconfig_DATA += \
+	ovn/lib/libovn.pc
+
 # ovn-sb IDL
 OVSIDL_BUILT += \
 	ovn/lib/ovn-sb-idl.c \
