@@ -539,7 +539,7 @@ def main():
             data = pipes.stdout.readline().strip(b'\n')
             if len(data) == 0:
                 raise KeyboardInterrupt
-            print(data.decode('utf-8'))
+            print(data.decode('utf-8'), flush=True)
         raise KeyboardInterrupt
     except KeyboardInterrupt:
         # If there is a pipe behind ovs-tcpdump (such as ovs-tcpdump
