@@ -410,6 +410,8 @@ OvsCtEntryCreate(OvsForwardingContext *fwdCtx,
     }
     if (state != OVS_CS_F_INVALID && commit) {
         if (entry) {
+            /* make sure that parentEntry is not equal to entry*/
+            ASSERT(!parentEntry || (parentEntry != entry));
             entry->parent = parentEntry;
             if (OvsCtAddEntry(entry, ctx, natInfo, currentTime)) {
                 *entryCreated = TRUE;
@@ -1033,8 +1035,9 @@ OvsProcessConntrackEntry(OvsForwardingContext *fwdCtx,
             } else {
                 POVS_CT_ENTRY parentEntry;
                 parentEntry = OvsCtRelatedLookup(ctx->key, currentTime);
-                entry->parent = parentEntry;
-                if (parentEntry != NULL) {
+                /* make sure that parentEntry is not equal to entry*/
+                if ((parentEntry != NULL) && (parentEntry != entry)) {
+                    entry->parent = parentEntry;
                     state |= OVS_CS_F_RELATED;
                 }
             }
