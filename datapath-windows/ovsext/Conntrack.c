@@ -1529,7 +1529,8 @@ OvsConntrackEntryCleaner(PVOID data)
     LOCK_STATE_EX lockState;
     BOOLEAN success = TRUE;
    
-    OVS_LOG_INFO("Start the ConntrackEntry Cleaner Thread, context: %p", context);
+    OVS_LOG_INFO("Start the OVS ConntrackEntry Cleaner system thread,"
+                 "context: %p", context);
     while (success) {
         if (context->exit) {
             break;
@@ -1551,7 +1552,7 @@ OvsConntrackEntryCleaner(PVOID data)
         KeWaitForSingleObject(&context->event, Executive, KernelMode,
                               FALSE, (LARGE_INTEGER *)&threadSleepTimeout);
     }
-    OVS_LOG_INFO("Terminating the OVS ConntrackEntry Cleaner system thread");
+    OVS_LOG_INFO("Terminate the OVS ConntrackEntry Cleaner system thread");
     PsTerminateSystemThread(STATUS_SUCCESS);
 }
 
