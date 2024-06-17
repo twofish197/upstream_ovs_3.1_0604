@@ -108,6 +108,7 @@ NTSTATUS OvsNatInit()
         OVS_CT_POOL_TAG);
     if (ovsUnNatTable == NULL) {
         OvsFreeMemoryWithTag(ovsNatTable, OVS_CT_POOL_TAG);
+        ovsNatTable = NULL;
         return STATUS_INSUFFICIENT_RESOURCES;
     }
 
@@ -157,7 +158,6 @@ VOID OvsNatFlush(UINT16 zone)
 VOID OvsNatCleanup()
 {
     if (ovsNatTable == NULL) {
-       NdisFreeSpinLock(&ovsCtNatLock);
        return;
     }
 
