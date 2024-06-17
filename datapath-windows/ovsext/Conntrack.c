@@ -40,7 +40,6 @@ static POVS_CT_ZONE_INFO zoneInfo = NULL;
 extern POVS_SWITCH_CONTEXT gOvsSwitchContext;
 static ULONG ctTotalEntries;
 static ULONG defaultCtLimit;
-static BOOLEAN OvsNatInitDone = FALSE;
 
 static __inline OvsCtFlush(UINT16 zone, struct ovs_key_ct_tuple_ipv4 *tuple);
 static __inline NDIS_STATUS
@@ -115,14 +114,11 @@ OvsInitConntrack(POVS_SWITCH_CONTEXT context)
         zoneInfo[i].limit = defaultCtLimit;
     }
 
-    if (OvsNatInitDone == FALSE) {
-        status = OvsNatInit();
-        if (status != STATUS_SUCCESS) {
-            OvsCleanupConntrack();
-            return status;
-        }
-        OvsNatInitDone = TRUE;
+    status = OvsNatInit();
+    if (status != STATUS_SUCCESS) {
+        OvsCleanupConntrack();
     }
+    return status;
 freeBucketLock:
     for (UINT32 i = 0; i < numBucketLocks; i++) {
         if (ovsCtBucketLock[i] != NULL) {
@@ -170,10 +166,7 @@ OvsCleanupConntrack(VOID)
     }
     OvsFreeMemoryWithTag(ovsCtBucketLock, OVS_CT_POOL_TAG);
     ovsCtBucketLock = NULL;
-    if (OvsNatInitDone) {
-        OvsNatCleanup();
-        OvsNatInitDone = FALSE;
-    }    
+    OvsNatCleanup();
     NdisFreeSpinLock(&ovsCtZoneLock);
     if (zoneInfo) {
         OvsFreeMemoryWithTag(zoneInfo, OVS_CT_POOL_TAG);
