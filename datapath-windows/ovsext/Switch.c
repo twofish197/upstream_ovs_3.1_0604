@@ -232,6 +232,7 @@ OvsCreateSwitch(NDIS_HANDLE ndisFilterHandle,
     if (status != STATUS_SUCCESS) {
         OvsUninitSwitchContext(switchContext);
         OVS_LOG_ERROR("Exit: Failed to initialize Connection tracking");
+        goto create_switch_done;
     }
 
     status = OvsInitIpFragment(switchContext);
