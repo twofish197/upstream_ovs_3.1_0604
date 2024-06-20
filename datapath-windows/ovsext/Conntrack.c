@@ -94,16 +94,27 @@ OvsInitConntrack(POVS_SWITCH_CONTEXT context)
     if (status != STATUS_SUCCESS) {
         goto freeBucketLock;
     }
-
-    ObReferenceObjectByHandle(threadHandle, SYNCHRONIZE, NULL, KernelMode,
-                              &ctThreadCtx.threadObject, NULL);
+    ctThreadCtx.exit = 0;
+    status = ObReferenceObjectByHandle(threadHandle, SYNCHRONIZE, NULL, KernelMode,
+                                       &ctThreadCtx.threadObject, NULL);
     ZwClose(threadHandle);
     threadHandle = NULL;
-
+    if (!NT_SUCCESS(status)) {
+        ctThreadCtx.exit = 1;
+        KeSetEvent(&ctThreadCtx.event, 0, FALSE);
+        KeWaitForSingleObject(ctThreadCtx.threadObject, Executive,
+                               KernelMode, FALSE, NULL);
+        goto freeBucketLock;
+    }
     zoneInfo = OvsAllocateMemoryWithTag(sizeof(OVS_CT_ZONE_INFO) *
                                         CT_MAX_ZONE, OVS_CT_POOL_TAG);
     if (zoneInfo == NULL) {
         status = STATUS_INSUFFICIENT_RESOURCES;
+        ctThreadCtx.exit = 1;
+        KeSetEvent(&ctThreadCtx.event, 0, FALSE);
+        KeWaitForSingleObject(ctThreadCtx.threadObject, Executive,
+                               KernelMode, FALSE, NULL);
+        ObDereferenceObject(ctThreadCtx.threadObject);
         goto freeBucketLock;
     }
 
